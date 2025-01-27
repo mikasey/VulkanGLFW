@@ -2,8 +2,10 @@
 
 // abstract workflow
 
-Application::Application(){ }
-Application::~Application(){ }
+Application::Application(){
+}
+Application::~Application(){
+}
 void Application::run(){
     initWindow();
     initVulkan();
@@ -21,6 +23,8 @@ void Application::initWindow(){
 void Application::initVulkan(){
     createInstance();
     setupDebugMessenger();
+    pickPhysicalDevice();
+    createLogicalDevice();
 }
 void Application::mainLoop(){
     while(!glfwWindowShouldClose(window)){
@@ -33,13 +37,14 @@ void Application::cleanup(){
     if(enableValidationLayers){
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
+    vkDestroyDevice(device, nullptr);
     vkDestroyInstance(instance, nullptr);
 
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
-// dirrect workflow
+// direct workflow
 
 void Application::createInstance(){
     if(enableValidationLayers && !checkValidationLayerSupport()){
@@ -64,21 +69,65 @@ void Application::createInstance(){
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if(enableValidationLayers){
+        populateDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
-
-        populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+        createInfo.pNext = &debugCreateInfo;
     }
     else{
         createInfo.enabledLayerCount = 0;
-
         createInfo.pNext = nullptr;
     }
 
     if(vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS){
         throw std::runtime_error("failed to create instance!");
     }
+}
+void Application::pickPhysicalDevice(){
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if(deviceCount == 0){
+        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    }
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    for(const auto& device : devices){
+        if(isDeviceSuitable(device)){
+            physicalDevice = device;
+            break;
+        }
+    }
+    if(physicalDevice == nullptr){
+        throw std::runtime_error("failed to find a suitable GPU!");
+    }
+
+}
+void Application::createLogicalDevice(){
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+    queueCreateInfo.queueCount = 1;
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+    // for later
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = 0;
+
+    VkResult result = vkCreateDevice(physicalDevice, &createInfo, nullptr, &device);
+    if(result != VK_SUCCESS){
+        throw std::runtime_error("failed to create logical device!");
+    }
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
 }
 
 // getters and checks
@@ -120,14 +169,46 @@ bool Application::checkValidationLayerSupport(){
 
     return true;
 }
+bool Application::isDeviceSuitable(VkPhysicalDevice device){
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+    bool result = deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
+               && deviceFeatures.geometryShader;
+
+    QueueFamilyIndices indices = findQueueFamilies(device);
+    return indices.isComplete() && result;
+}
+Application::QueueFamilyIndices Application::findQueueFamilies(VkPhysicalDevice device){
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    int i = 0;
+    for(const auto& queueFamily : queueFamilies){
+        if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT){
+            indices.graphicsFamily = i;
+        }
+        if(indices.isComplete()){
+            break;
+        }
+        i++;
+    }
+
+    return indices;
+}
 
 // debug messaging
 
 void Application::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo){
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = 0  |VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                                    |VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT 
+    createInfo.messageSeverity = 0  | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT 
                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType =     0  | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
@@ -160,6 +241,9 @@ void Application::setupDebugMessenger(){
         throw std::runtime_error("failed to set up debug messenger!");
     }
 }
+
+// error callbacks
+
 VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
     VkDebugUtilsMessageSeverityFlagBitsEXT minLevel = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
     if(messageSeverity < minLevel){
@@ -168,9 +252,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
     return VK_FALSE;
 }
-
-// error callbacks
-
 void Application::glfwErrorCallback(int error_code, const char* description){
     std::stringstream message;
     message << "GLFW error [" << error_code << "]: " << description << std::endl;

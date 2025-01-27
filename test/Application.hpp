@@ -10,28 +10,43 @@
 #include <vector>
 #include <stdexcept>	// exeptions
 #include <cstdlib>		// EXIT_SUCCESS, EXIT_FAILURE and precise types
-
-
+#include <optional>
 
 class Application{
 public:
 	Application();
 	virtual ~Application();
 	void run();
+    void cleanup();
 
 protected:
+	struct QueueFamilyIndices{
+		std::optional<uint32_t> graphicsFamily;
+
+		inline bool isComplete() const{
+			return graphicsFamily.has_value();
+		}
+	};
+
     void initVulkan();
     void mainLoop();
-    void cleanup();
 
 	void initWindow();
 	void createInstance();
+	void pickPhysicalDevice();
+	void createLogicalDevice();
 
 	bool checkValidationLayerSupport();
+	bool isDeviceSuitable(VkPhysicalDevice device);
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 
 	GLFWwindow* window = nullptr;
+
 	VkInstance instance = nullptr;
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
+	VkPhysicalDevice physicalDevice = nullptr;
+	VkDevice device = nullptr;
+	VkQueue graphicsQueue = nullptr;
 
 	const uint32_t window_width = 1280;
 	const uint32_t window_height = 720;

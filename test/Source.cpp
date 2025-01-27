@@ -8,8 +8,9 @@ int main(){
     }
     catch(const std::exception& e){
         std::cerr << e.what() << std::endl;
+        app.cleanup();
         return EXIT_FAILURE;
     }
-
+    app.cleanup();
     return EXIT_SUCCESS;
 }
