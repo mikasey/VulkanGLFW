@@ -11,6 +11,5 @@ int main(){
         app.cleanup();
         return EXIT_FAILURE;
     }
-    app.cleanup();
     return EXIT_SUCCESS;
 }

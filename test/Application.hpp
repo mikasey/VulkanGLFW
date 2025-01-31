@@ -1,16 +1,19 @@
 #pragma once
 
 #include <Vulkan/vulkan.h>
-// #define GLFW_INCLUDE_VULKAN // do not see any practical reason for it, normal vulkan header looks cooler
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <GLM/glm.hpp>
 
-#include <sstream>		// formating
-#include <iostream>		// console logging
+#include <sstream>
+#include <iostream>
 #include <vector>
-#include <stdexcept>	// exeptions
-#include <cstdlib>		// EXIT_SUCCESS, EXIT_FAILURE and precise types
+#include <stdexcept>
+#include <cstdlib>
 #include <optional>
+#include <set>
+#include <limits>
+#include <algorithm>
 
 class Application{
 public:
@@ -22,10 +25,16 @@ public:
 protected:
 	struct QueueFamilyIndices{
 		std::optional<uint32_t> graphicsFamily;
+		std::optional<uint32_t> presentFamily;
 
 		inline bool isComplete() const{
-			return graphicsFamily.has_value();
+			return graphicsFamily.has_value() && presentFamily.has_value();
 		}
+	};
+	struct SwapChainSupportDetails{
+		VkSurfaceCapabilitiesKHR capabilities;
+		std::vector<VkSurfaceFormatKHR> formats;
+		std::vector<VkPresentModeKHR> presentModes;
 	};
 
     void initVulkan();
@@ -33,26 +42,43 @@ protected:
 
 	void initWindow();
 	void createInstance();
+	void createSurface();
 	void pickPhysicalDevice();
 	void createLogicalDevice();
+	void createSwapChain();
+	void createImageViews();
+	void createGraphicsPipeline();
 
 	bool checkValidationLayerSupport();
 	bool isDeviceSuitable(VkPhysicalDevice device);
-	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
 	GLFWwindow* window = nullptr;
-
 	VkInstance instance = nullptr;
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
+	VkSurfaceKHR surface = nullptr;
 	VkPhysicalDevice physicalDevice = nullptr;
 	VkDevice device = nullptr;
 	VkQueue graphicsQueue = nullptr;
+	VkQueue presentQueue = nullptr;
+	VkSwapchainKHR swapChain = nullptr;
+	std::vector<VkImage> swapChainImages;
+	std::vector<VkImageView> swapChainImageViews;
+	VkFormat swapChainImageFormat = VK_FORMAT_UNDEFINED;
+	VkExtent2D swapChainExtent = {};
 
 	const uint32_t window_width = 1280;
 	const uint32_t window_height = 720;
 	const char* application_title = "Vulkan test window";
 	const std::vector<const char*> validationLayers = {
 		"VK_LAYER_KHRONOS_validation"
+	};
+	const std::vector<const char*> deviceExtensions = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
