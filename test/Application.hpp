@@ -14,6 +14,7 @@
 #include <set>
 #include <limits>
 #include <algorithm>
+#include <fstream>
 
 class Application{
 public:
@@ -32,21 +33,22 @@ protected:
 		}
 	};
 	struct SwapChainSupportDetails{
-		VkSurfaceCapabilitiesKHR capabilities;
+		VkSurfaceCapabilitiesKHR capabilities = {};
 		std::vector<VkSurfaceFormatKHR> formats;
 		std::vector<VkPresentModeKHR> presentModes;
 	};
 
+	void initWindow();
     void initVulkan();
     void mainLoop();
 
-	void initWindow();
 	void createInstance();
 	void createSurface();
 	void pickPhysicalDevice();
 	void createLogicalDevice();
 	void createSwapChain();
 	void createImageViews();
+	void createRenderPass();
 	void createGraphicsPipeline();
 
 	bool checkValidationLayerSupport();
@@ -56,6 +58,8 @@ protected:
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+	std::vector<char> readFile(const std::string& filename);
+	VkShaderModule createShaderModule(const std::vector<char>& code) const;
 
 	GLFWwindow* window = nullptr;
 	VkInstance instance = nullptr;
@@ -70,6 +74,9 @@ protected:
 	std::vector<VkImageView> swapChainImageViews;
 	VkFormat swapChainImageFormat = VK_FORMAT_UNDEFINED;
 	VkExtent2D swapChainExtent = {};
+	VkRenderPass renderPass = nullptr;
+	VkPipelineLayout pipelineLayout = {};
+	VkPipeline graphicsPipeline = nullptr;
 
 	const uint32_t window_width = 1280;
 	const uint32_t window_height = 720;
@@ -87,7 +94,6 @@ protected:
 #endif
 
     std::vector<const char*> getRequiredExtensions() const;
-
     void setupDebugMessenger();
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);

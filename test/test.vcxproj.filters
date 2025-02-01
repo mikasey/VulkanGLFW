@@ -27,6 +27,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="shaders\basic_triangle.vert" />
+    <None Include="shaders\basic_triangle.frag" />
+    <None Include="shaders\compile_shaders.bat">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="shaders\frag.spv" />
+    <None Include="shaders\vert.spv" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
