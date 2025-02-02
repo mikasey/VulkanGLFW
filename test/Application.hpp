@@ -50,6 +50,14 @@ protected:
 	void createImageViews();
 	void createRenderPass();
 	void createGraphicsPipeline();
+	void createFramebuffers();
+	void createCommandPool();
+	void createCommandBuffers();
+	void createSyncObjects();
+
+	void drawFrame();
+	void cleanupSwapChain();
+	void recreateSwapChain();
 
 	bool checkValidationLayerSupport();
 	bool isDeviceSuitable(VkPhysicalDevice device);
@@ -60,6 +68,8 @@ protected:
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 	std::vector<char> readFile(const std::string& filename);
 	VkShaderModule createShaderModule(const std::vector<char>& code) const;
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
 	GLFWwindow* window = nullptr;
 	VkInstance instance = nullptr;
@@ -77,9 +87,18 @@ protected:
 	VkRenderPass renderPass = nullptr;
 	VkPipelineLayout pipelineLayout = {};
 	VkPipeline graphicsPipeline = nullptr;
+	std::vector<VkFramebuffer> swapChainFramebuffers;
+	VkCommandPool commandPool = nullptr;
+	std::vector<VkCommandBuffer> commandBuffers;
+	std::vector<VkSemaphore> imageAvailableSemaphores;
+	std::vector<VkSemaphore> renderFinishedSemaphores;
+	std::vector<VkFence> inFlightFences;
+	uint32_t currentFrame = 0;
+	bool framebufferResized = false;
 
 	const uint32_t window_width = 1280;
 	const uint32_t window_height = 720;
+	const int MAX_FRAMES_IN_FLIGHT = 2;
 	const char* application_title = "Vulkan test window";
 	const std::vector<const char*> validationLayers = {
 		"VK_LAYER_KHRONOS_validation"
